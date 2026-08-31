@@ -1,0 +1,109 @@
+# =============================================================================
+# export_config.yaml
+# -----------------------------------------------------------------------------
+# Primer konfiguracije za Excel Data Processor.
+#
+# Scenario ovog primera:
+#   ulaz:          data/input.xlsx, sheet "Transactions"
+#   filter:        samo zapisi iz 2025. godine i kategorija "Agriculture"
+#   transformacija: nova kolona value_eur = value_rsd / 117 (zaokruženo na 2 decimale)
+#   izlaz:         output/agriculture_2025.xlsx sa sheet-ovima Raw / Processed / Summary
+#
+# Pokretanje:
+#   python src/main.py --config config/export_config.yaml --verbose
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# INPUT - odakle se čitaju podaci
+# -----------------------------------------------------------------------------
+input:
+  # Putanja do jednog Excel fajla ILI do foldera (tada se učitavaju i spajaju
+  # svi .xlsx/.xlsm/.xls fajlovi iz tog foldera).
+  path: "data/input.xlsx"
+
+  # Ime sheet-a koji se čita. Može biti i broj (0 = prvi sheet).
+  sheet: "Transactions"
+
+  # Opciono: ograniči se samo na navedene kolone (validira se da postoje).
+  # Prazna lista / izostavljeno polje = koriste se sve kolone iz sheet-a.
+  columns: []
+
+  # Ako je 'path' folder sa više fajlova, ovo dodaje kolonu '_source_file'
+  # sa imenom fajla iz kog je red učitan (korisno za audit/debug).
+  tag_source_file: false
+
+# -----------------------------------------------------------------------------
+# FILTERS - filtriranje podataka (po datumu, kategoriji, regionu, itd.)
+# -----------------------------------------------------------------------------
+filters:
+  # Filter po opsegu datuma (uključivo). Zahteva 'date_column'.
+  date_column: "date"
+  date_from: "2025-01-01"
+  date_to: "2025-12-31"
+
+  # Filter "kolona sadrži jednu od vrednosti" - npr. kategorija ili region.
+  in:
+    category: ["Agriculture"]
+    # region: ["Vojvodina", "Šumadija"]   # primer dodatnog filtera po regionu
+
+  # Filter po tačnom poklapanju vrednosti: equals: {kolona: vrednost}
+  equals: {}
+
+  # Numerički opsezi: min/max: {kolona: broj}
+  min: {}
+  max: {}
+
+# -----------------------------------------------------------------------------
+# TRANSFORMATIONS - nove/izmenjene kolone
+# -----------------------------------------------------------------------------
+transformations:
+  # Nove kolone izračunate iz postojećih (izraz se evaluira preko pandas
+  # DataFrame.eval - dozvoljene su samo aritmetičke operacije nad kolonama).
+  compute_columns:
+    - name: "value_eur"
+      expression: "value_rsd / 117"
+    - name: "total"
+      expression: "quantity * price"
+
+  # Zaokruživanje numeričkih kolona: {kolona: broj_decimala}
+  round:
+    value_eur: 2
+    total: 2
+
+  # Preimenovanje kolona: {staro_ime: novo_ime}
+  rename_columns: {}
+
+  # Brisanje kolona iz rezultata: [kolona, ...]
+  drop_columns: []
+
+# -----------------------------------------------------------------------------
+# SUMMARY - agregacija/grupisanje za rezimirajući "Summary" sheet
+# -----------------------------------------------------------------------------
+summary:
+  enabled: true
+  group_by: ["category", "region"]
+  aggregations:
+    quantity: "sum"
+    value_rsd: "sum"
+    value_eur: "sum"
+
+# -----------------------------------------------------------------------------
+# OUTPUT - gde i kako se upisuje rezultat
+# -----------------------------------------------------------------------------
+output:
+  path: "output/agriculture_2025.xlsx"
+
+  # Imena sheet-ova u izlaznom fajlu.
+  sheet_names:
+    raw: "Raw"
+    processed: "Processed"
+    summary: "Summary"
+
+  # Koji sheet-ovi ulaze u izlazni fajl (Summary se kontroliše preko 'summary.enabled').
+  include_raw: true
+  include_processed: true
+
+  # Formatiranje: brojni format za numeričke kolone, zamrznut red zaglavlja, auto-filter.
+  number_format: "#,##0.00"
+  freeze_header: true
+  autofilter: true

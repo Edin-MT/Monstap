@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Generisani izlazni Excel fajlovi (osim primer fajlova koje eksplicitno pratimo).
+output/*.xlsx
+!output/.gitkeep
+
+.DS_Store
